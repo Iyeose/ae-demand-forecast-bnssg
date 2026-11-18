@@ -1,0 +1,101 @@
+---
+title: "A&E demand in BNSSG and Gloucestershire: what to plan for in 2027-28"
+author: "Iyeose Simon"
+date: today
+date-format: "D MMMM YYYY"
+format:
+  html:
+    embed-resources: true
+    theme: cosmo
+    max-width: 800px
+  docx:
+    fig-dpi: 200
+    reference-doc: brief-reference.docx   # narrow margins, 11pt text, 18pt title: fits one page
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup}
+library(tidyverse)
+library(tsibble)
+library(here)
+
+tab <- function(f) read_csv(here("outputs", "tables", f), show_col_types = FALSE)
+pct <- function(x, a = 1) scales::percent(x, accuracy = a)
+k   <- function(x) paste0(scales::comma(round(x / 1000)), ",000")
+
+q1   <- tab("q1_growth_seasonality.csv")
+ann  <- tab("q2_plan_annual_2027_28.csv")
+scen <- tab("q3_scenarios.csv")
+monthly <- read_rds(here("data", "processed", "ae_type1_monthly.rds"))
+
+b   <- filter(q1, str_detect(provider, "Bristol"))
+g   <- filter(q1, str_detect(provider, "Glouc"))
+tot <- filter(ann, provider == "Cluster total")
+s   <- scen$pct_4h
+w   <- scen$mean_wait_clinician
+j26 <- monthly |> as_tibble() |>
+  filter(str_detect(provider, "Glouc"), month == yearmonth("2026 Jan")) |> pull(pct_within_4h)
+last_month <- format(as.Date(max(monthly$month)), "%B %Y")
+```
+
+**The short version.** Plan for about **`r k(tot$mean)` major A&E attendances** across the Bristol and Gloucestershire hospital trusts in 2027-28, about `r pct(tot$change_vs_last_12m)` more than last year. Gloucestershire's emergency department is at the limit of its staffing: without extra cover, waits in January 2028 will be noticeably worse.
+
+### 1. Is demand growing?
+
+Yes. Since the pandemic, attendances have grown about **`r pct(b$reg_growth_pa)` a year** in Bristol and **`r pct(g$reg_growth_pa)`** in Gloucestershire, faster in the last year. January is the quietest month for arrivals (`r pct(abs(b$reg_winter_vs_summer_att))` to `r pct(abs(g$reg_winter_vs_summer_att))` below summer); winter pressure comes from sicker patients needing beds, and longer waits for those beds.
+
+### 2. How much activity should we plan for?
+
+```{r plan}
+ann |>
+  mutate(Area = case_when(str_detect(provider, "Bristol") ~ "Bristol (Bristol NHS FT)",
+                          str_detect(provider, "Glouc") ~ "Gloucestershire Hospitals",
+                          TRUE ~ "Both trusts")) |>
+  transmute(Area, `Plan for 2027-28` = scales::comma(round(mean, -2)),
+            `Likely range` = paste(scales::comma(round(lo80, -2)), "to", scales::comma(round(hi80, -2))),
+            `Change on last 12 months` = pct(change_vs_last_12m, 0.1)) |>
+  knitr::kable(align = "lrrr")
+```
+
+The likely range covers 8 in 10 outcomes. **The risk is mainly upwards for Gloucestershire**, where recent months have run above trend.
+
+```{r chart, fig.width = 7.5, fig.height = 1.9}
+fc <- read_rds(here("data", "processed", "forecast_monthly_ranges.rds")) |>
+  filter(provider != "Cluster total")
+hist <- monthly |> as_tibble() |> filter(month >= yearmonth("2023 Apr"))
+nice <- function(x) if_else(str_detect(x, "Bristol"), "Bristol", "Gloucestershire")
+
+ggplot() +
+  annotate("rect", xmin = as.Date("2027-04-01"), xmax = as.Date("2028-03-31"),
+           ymin = -Inf, ymax = Inf, fill = "grey90") +
+  geom_ribbon(data = mutate(fc, provider = nice(provider)),
+              aes(as.Date(month), ymin = lo80, ymax = hi80), fill = "#2c6fbb", alpha = 0.25) +
+  geom_line(data = mutate(fc, provider = nice(provider)),
+            aes(as.Date(month), mean), colour = "#2c6fbb", linewidth = 0.8) +
+  geom_line(data = mutate(hist, provider = nice(provider)),
+            aes(as.Date(month), type1_att), colour = "black", linewidth = 0.6) +
+  facet_wrap(~provider, scales = "free_y") +
+  scale_y_continuous(labels = scales::comma) +
+  labs(x = NULL, y = "Attendances a month",
+       caption = "Black: actual. Blue: forecast with likely range. Grey: 2027-28.") +
+  theme_minimal(base_size = 10)
+```
+
+### 3. What does this mean for A&E in January 2028?
+
+Modelling Gloucestershire's emergency departments hour by hour shows:
+
+- **With today's staffing**, patients leaving A&E within 4 hours fall from about `r pct(j26)` (January 2026) to about **`r pct(s[1])`**.
+- **One extra senior clinician from 10am to 10pm** lifts this to about **`r pct(s[2])`** and cuts the average wait to be seen from `r round(w[1])` to `r round(w[2])` minutes. Night arrivals benefit too.
+- At the top of the demand range, the current rota cannot keep up.
+
+### What this means for the 2027-28 plan
+
+1. **Plan on about `r k(tot$mean)` attendances** and stress-test against the top of the range, especially for Gloucestershire.
+2. **Focus winter plans on beds and patient flow**, not front-door capacity.
+3. **Fund extra clinician cover from 10am to 10pm in winter**, starting with Gloucestershire.
+
+*Source: NHS England monthly A&E data to `r last_month`. Methods and assumptions: see the technical report.*

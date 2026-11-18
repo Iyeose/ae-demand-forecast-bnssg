@@ -1,0 +1,12 @@
+parameter,value,source
+Department,GRH + Cheltenham modelled as one combined ED,Scoping decision
+Arrivals (Jan 2028),445 per day (95% upper 480),"Forecast, 04_forecast.R"
+Arrival pattern by hour,"Low 03:00-06:00, peak 10:00-12:00",Illustrative; consistent with NHS Digital HES A&E reports
+Triage,"10 min average; 5 nurses 08:00-22:00, 3 overnight (both sites)",Stated assumption
+Clinician assessment,45 min average (SD 25),Stated assumption; ~1 patient/hour per clinician is in line with published UK ED productivity
+Investigations / treatment,"90 min average (SD 60), no clinician time",Stated assumption
+Clinician review / decision,10 min average (SD 5),Stated assumption
+Admission rate,22.1%,"GHFT Type 1, January 2026 (NHS England monthly A&E)"
+Bed wait after decision to admit,"Log-normal, median 45 min; 29% > 4h, 18.6% > 12h","GHFT DTA waits, January 2026 (NHS England monthly A&E)"
+Clinician rota,"22 (10:00-22:00), 18 (08:00-10:00), 16 (22:00-24:00), 12 (00:00-08:00)",Calibrated to GHFT's actual January 2026 4-hour performance
+Replications,"100 per scenario (50 for sensitivity); 2 warm-up days, 7 measured days",Simulation design

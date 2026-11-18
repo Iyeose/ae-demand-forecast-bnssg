@@ -1,0 +1,49 @@
+provider,measure,cal_month,index
+Bristol (NBT + UHBW),Attendances,Jan,-0.06625228707628228
+Bristol (NBT + UHBW),Attendances,Feb,-0.020427624933742505
+Bristol (NBT + UHBW),Attendances,Mar,0.021492978516408412
+Bristol (NBT + UHBW),Attendances,Apr,-0.01956294249409052
+Bristol (NBT + UHBW),Attendances,May,0.02629661906282532
+Bristol (NBT + UHBW),Attendances,Jun,0.02652754789166134
+Bristol (NBT + UHBW),Attendances,Jul,0.00773199460698315
+Bristol (NBT + UHBW),Attendances,Aug,-0.04342960823449793
+Bristol (NBT + UHBW),Attendances,Sep,0.01921383801150589
+Bristol (NBT + UHBW),Attendances,Oct,0.04134236527542012
+Bristol (NBT + UHBW),Attendances,Nov,0.045380376411845
+Bristol (NBT + UHBW),Attendances,Dec,-0.031186602991559842
+Bristol (NBT + UHBW),Emergency admissions,Jan,0.010509730626733882
+Bristol (NBT + UHBW),Emergency admissions,Feb,0.003019641224996983
+Bristol (NBT + UHBW),Emergency admissions,Mar,0.011113850269193204
+Bristol (NBT + UHBW),Emergency admissions,Apr,-0.01659935106344068
+Bristol (NBT + UHBW),Emergency admissions,May,0.004195244295960521
+Bristol (NBT + UHBW),Emergency admissions,Jun,-0.009539646034930627
+Bristol (NBT + UHBW),Emergency admissions,Jul,-0.009205498129637224
+Bristol (NBT + UHBW),Emergency admissions,Aug,-0.04825166618174048
+Bristol (NBT + UHBW),Emergency admissions,Sep,0.004515110952764356
+Bristol (NBT + UHBW),Emergency admissions,Oct,0.024565862121829873
+Bristol (NBT + UHBW),Emergency admissions,Nov,0.05074322888486571
+Bristol (NBT + UHBW),Emergency admissions,Dec,-0.021714565872977487
+Gloucestershire (GHFT),Attendances,Jan,-0.07730720129240187
+Gloucestershire (GHFT),Attendances,Feb,-0.04242415655285259
+Gloucestershire (GHFT),Attendances,Mar,0.008311154633132256
+Gloucestershire (GHFT),Attendances,Apr,-0.009655717841923983
+Gloucestershire (GHFT),Attendances,May,0.029551580582682035
+Gloucestershire (GHFT),Attendances,Jun,0.04166016425891783
+Gloucestershire (GHFT),Attendances,Jul,0.027752152752419823
+Gloucestershire (GHFT),Attendances,Aug,-0.010378867007136972
+Gloucestershire (GHFT),Attendances,Sep,0.044389932812756605
+Gloucestershire (GHFT),Attendances,Oct,0.02847893033684268
+Gloucestershire (GHFT),Attendances,Nov,0.011822769833631064
+Gloucestershire (GHFT),Attendances,Dec,-0.043918596386909314
+Gloucestershire (GHFT),Emergency admissions,Jan,-0.020334443975529637
+Gloucestershire (GHFT),Emergency admissions,Feb,-0.017833275146343475
+Gloucestershire (GHFT),Emergency admissions,Mar,-0.012604882753101565
+Gloucestershire (GHFT),Emergency admissions,Apr,-0.03831727419463604
+Gloucestershire (GHFT),Emergency admissions,May,-0.03210531875971456
+Gloucestershire (GHFT),Emergency admissions,Jun,-0.0259022458920376
+Gloucestershire (GHFT),Emergency admissions,Jul,0.056306452796407225
+Gloucestershire (GHFT),Emergency admissions,Aug,-4.679751472747018e-5
+Gloucestershire (GHFT),Emergency admissions,Sep,0.020745047832061436
+Gloucestershire (GHFT),Emergency admissions,Oct,0.013259212956638677
+Gloucestershire (GHFT),Emergency admissions,Nov,0.041518647694732014
+Gloucestershire (GHFT),Emergency admissions,Dec,0.020255647501400187

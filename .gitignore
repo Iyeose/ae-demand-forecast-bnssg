@@ -1,0 +1,11 @@
+.Rproj.user/
+.Rhistory
+.RData
+.Rdata
+.httr-oauth
+.DS_Store
+data/raw/*.csv
+!data/raw/_file_index.csv
+renv/library/
+renv/staging/
+report/*_files/
