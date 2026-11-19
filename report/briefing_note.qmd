@@ -101,4 +101,4 @@ Simulating Gloucestershire's Type 1 department (both sites as one, calibrated to
 2. **Fund extra clinician cover from 10am to 10pm in winter**, starting with Gloucestershire.
 3. **Plan winter beds for sicker patients**: admissions, not arrivals, drive winter pressure.
 
-*Source: NHS England monthly A&E data to `r last_month`. 4-hour figures are Type 1 only, below published all-types figures. Methods and assumptions: see the technical report.*
+*Source: NHS England A&E data to `r last_month`. Type 1 only (below all-types figures). Methods: technical report.*
