@@ -3,7 +3,7 @@ title: "Forecasting and simulating A&E demand in BNSSG and Gloucestershire"
 subtitle: "Technical report"
 author: "Iyeose Simon"
 date: today
-date-format: "D MMMM YYYY"
+date-format: "MMMM YYYY"
 format:
   html:
     toc: true

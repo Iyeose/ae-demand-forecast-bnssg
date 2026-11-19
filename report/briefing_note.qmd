@@ -2,7 +2,7 @@
 title: "A&E demand in BNSSG and Gloucestershire: what to plan for in 2027-28"
 author: "Iyeose Simon"
 date: today
-date-format: "D MMMM YYYY"
+date-format: "MMMM YYYY"
 format:
   html:
     embed-resources: true
