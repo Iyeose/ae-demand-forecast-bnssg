@@ -20,6 +20,7 @@ library(tidyverse)
 library(janitor)
 library(tsibble)
 library(fs)
+source("R/00_config.R")
 
 providers <- tribble(
   ~org_code, ~provider,
@@ -71,7 +72,7 @@ ae <- raw |>
     across(c(type1_att, type1_booked, type1_over4h, emerg_adm_t1),
            \(x) as.numeric(str_remove_all(x, ",")))
   ) |>
-  filter(!is.na(month))
+  filter(!is.na(month), month >= DATA_START, month <= DATA_END)   # frozen window
 
 # Revisions: one row per org per month, preferring revised files
 ae <- ae |>

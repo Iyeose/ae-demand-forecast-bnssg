@@ -17,6 +17,7 @@ library(tsibble)
 library(feasts)
 library(fabletools)
 library(fs)
+source("R/00_config.R")
 
 monthly <- read_rds("data/processed/ae_type1_monthly.rds")
 dir_create("outputs/figures")
@@ -97,6 +98,8 @@ reg_summary <- map(providers, \(p) {
          reg_growth_hi = att$growth_hi,
          reg_winter_vs_summer_att = att$winter_vs_summer,
          reg_winter_vs_summer_adm = adm$winter_vs_summer,
+         # share of attendances admitted, winter vs summer
+         reg_winter_vs_summer_admrate = (1 + adm$winter_vs_summer) / (1 + att$winter_vs_summer) - 1,
          winter_minus_summer_4h_pts = perf$winter_vs_summer)
 }) |> list_rbind()
 
@@ -142,7 +145,8 @@ q1 |>
     `Winter vs summer (STL)` = pct(stl_winter_vs_summer),
     `Winter vs summer (reg)` = pct(reg_winter_vs_summer_att),
     `Admissions winter vs summer` = pct(reg_winter_vs_summer_adm),
-    `4h perf winter - summer (pts)` = as.character(round(winter_minus_summer_4h_pts, 1)),
+    `Admission rate winter vs summer` = pct(reg_winter_vs_summer_admrate),
+    `Type 1 4h perf winter - summer (pts)` = as.character(round(winter_minus_summer_4h_pts, 1)),
     `Per day: pre-Covid -> last 12m` = paste0(round(pre_covid_per_day), " -> ", round(last_12m_per_day),
                                               " (", pct(change_vs_pre), ")")
   ) |>

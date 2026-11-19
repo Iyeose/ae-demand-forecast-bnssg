@@ -1,50 +1,41 @@
-# Setting up your computer (one-off, about 30–45 minutes)
+# Setup
 
-Do these in order. Everything is free.
+How to run this project on a new computer. Tested on Windows with R 4.4.2.
 
-## 1. Install R
-- Go to https://cran.r-project.org and choose your system (Windows or macOS).
-- Windows: click "base", then "Download R-x.x.x for Windows". Run the installer and accept the defaults.
-- macOS: pick the .pkg that matches your chip (Apple silicon "arm64" or Intel "x86_64").
+## Requirements
 
-## 2. Install RStudio Desktop
-- Go to https://posit.co/download/rstudio-desktop/ and install RStudio.
-- RStudio already includes Quarto, so you can render the report without a separate install.
-  (Optional: install Quarto on its own from https://quarto.org if you want to render from a terminal.)
+- [R](https://cran.r-project.org) 4.4 or later
+- [RStudio Desktop](https://posit.co/download/rstudio-desktop/) (includes Quarto, used for the reports)
+- [Git](https://git-scm.com/downloads), to clone the repository
 
-## 3. Install Git and create a GitHub account
-- Git: https://git-scm.com/downloads (accept the defaults).
-- GitHub: sign up at https://github.com if you don't have an account.
-- Tell Git who you are. In RStudio, open the **Terminal** tab and run:
-  ```
-  git config --global user.name "Iyeose Simon"
-  git config --global user.email "you@example.com"
-  ```
+## Steps
 
-## 4. Open the project
-1. Unzip / copy the `ae-demand-forecast-bnssg` folder somewhere sensible (e.g. Documents).
-2. In RStudio: File → New Project → Existing Directory → choose that folder.
-   This creates `ae-demand-forecast-bnssg.Rproj`. Always open the project through that file.
+1. Clone the repository and open `ae-demand-forecast-bnssg.Rproj` in RStudio.
+   Opening the project file sets the working folder, so every path in the scripts works.
+2. Install the exact package versions recorded in `renv.lock`:
+   ```r
+   renv::restore()
+   ```
+   Packages come from the Posit Public Package Manager, which provides ready-made
+   Windows packages for older R versions, so no compiler (Rtools) is needed.
+3. Run everything:
+   ```r
+   source("run_all.R")
+   ```
+   This cleans the data, fits the models, runs the simulation (a few minutes) and
+   renders the technical report and briefing note into `report/`.
 
-## 5. Install the packages (first time only)
-In the RStudio **Console**, run:
-```r
-source("R/00_setup.R")
-```
-This installs `renv`, creates a private package library for this project and installs
-everything the project needs. It takes 10–20 minutes the first time. When it finishes it
-writes `renv.lock`, the file that lets anyone else reinstall exactly the same versions.
+## Data
 
-If you see a question like "Do you want to proceed? [Y/n]", type `Y` and press Enter.
+The raw NHS England files up to October 2026 are included in `data/raw/`, and the
+cut-off is fixed in `R/00_config.R` (`DATA_END`). A rerun therefore uses exactly the
+same data and, with fixed random seeds, gives the same results.
 
-## 6. Run the data pipeline
-```r
-source("R/01_download_data.R")   # downloads the monthly CSVs from NHS England
-source("R/02_clean_data.R")      # builds the clean Type 1 series and a first chart
-```
-Then open `outputs/figures/01_type1_per_day.png` and check the lines look sensible.
+To update the analysis with newer months, move `DATA_END` and set `REFRESH_DATA <- TRUE`.
+The download script will then fetch new and revised files from NHS England, and
+every number will change accordingly.
 
-## If something goes wrong
-Copy the full red error message from the Console and send it to me, along with which
-script you were running. Most first-run problems are a package that failed to install or a
-column name NHS England changed, and both are quick to fix.
+## First-time package setup without the lockfile
+
+`R/00_setup.R` builds the package library from scratch and writes a new `renv.lock`.
+It is only needed if `renv.lock` is missing.

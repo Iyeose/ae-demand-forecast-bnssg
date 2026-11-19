@@ -18,8 +18,12 @@ what January 2028 demand means for 4-hour performance. Built in R.
 
 ```r
 renv::restore()        # 1. install the exact package versions
-source("run_all.R")    # 2. download data, clean, model, simulate, render the report
+source("run_all.R")    # 2. clean, model, simulate, render the reports
 ```
+
+The raw NHS England files are included in `data/raw/` and the analysis is frozen at
+October 2026 (`R/00_config.R`), so a rerun gives the same results. See `SETUP.md`
+for details and for how to update to newer months.
 
 ## Methods in brief
 
@@ -27,8 +31,8 @@ source("run_all.R")    # 2. download data, clean, model, simulate, render the re
 |---|---|
 | Data | NHS England monthly A&E CSVs, April 2018 onwards, downloaded automatically |
 | Growth and seasonality | STL decomposition and log-linear regression, July 2021 onwards (post-Covid) |
-| Forecast | Seasonal naive, ETS, ARIMA, regression and regression with ARIMA errors (`fable`), tested on the last 12 months; best model with clean residuals chosen; 2,000 simulated futures for ranges |
-| Simulation | Discrete-event model (`simmer`) of Gloucestershire's emergency departments as one combined department, calibrated to January 2026 performance; 100 replications per scenario; +/-20% sensitivity analysis |
+| Forecast | Seasonal naive, ETS, ARIMA, regression and regression with ARIMA errors (`fable`), compared by rolling-origin cross-validation (17 back-tests, 12 months ahead); best model with clean residuals chosen; ranges widened to match back-test errors |
+| Simulation | Discrete-event model (`simmer`) of Gloucestershire's Type 1 emergency departments as one combined department; bed waits from published decision-to-admit data; clinician time calibrated to January 2026 Type 1 performance; 100 simulated Januaries per scenario; +/-20% sensitivity analysis |
 
 ## Trusts and organisation codes
 
@@ -40,7 +44,8 @@ source("run_all.R")    # 2. download data, clean, model, simulate, render the re
 ## Structure
 
 ```
-R/01_download_data.R   download monthly CSVs from NHS England
+R/00_config.R          data cut-off (October 2026) shared by all scripts
+R/01_download_data.R   download monthly CSVs from NHS England (skipped when frozen)
 R/02_clean_data.R      clean Type 1 series per trust
 R/03_explore.R         Q1: growth and seasonality
 R/04_forecast.R        Q2: model comparison and 2027-28 forecast
@@ -49,7 +54,7 @@ report/report.qmd      technical report (renders to report.html)
 outputs/tables/        results tables (CSV)
 outputs/figures/       charts (PNG)
 data/processed/        clean data used by the models
-data/raw/              downloaded CSVs (not committed; rebuilt by the scripts)
+data/raw/              NHS England monthly CSVs, April 2018 to October 2026 (frozen)
 ```
 
 ## Data source

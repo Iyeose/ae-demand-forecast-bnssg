@@ -1,6 +1,7 @@
 # 01_download_data.R ------------------------------------------------------------
 # Finds every monthly provider-level A&E CSV on the NHS England yearly pages
-# (2015-16 onwards) and downloads them to data/raw/.
+# (2015-16 onwards) and downloads them to data/raw/. Skipped when the frozen
+# raw files up to DATA_END (R/00_config.R) are already present.
 #
 # Why scrape rather than hard-code links: NHS England stores each file in an
 # upload folder named after its publication date, and revised files get new
@@ -9,6 +10,23 @@
 library(tidyverse)
 library(rvest)
 library(fs)
+source("R/00_config.R")
+
+# Frozen data: the raw CSVs up to DATA_END are committed to the repository, so
+# by default nothing is downloaded and every rerun uses exactly the same files.
+have_frozen_data <- function() {
+  index_path <- "data/raw/_file_index.csv"
+  if (!file_exists(index_path)) return(FALSE)
+  idx <- read_csv(index_path, show_col_types = FALSE)
+  m <- tsibble::yearmonth(lubridate::my(idx$month_label))
+  need <- seq(DATA_START, DATA_END, by = 1)
+  all(need %in% m) && all(file_exists(idx$file[!is.na(m) & m >= DATA_START & m <= DATA_END]))
+}
+
+if (!REFRESH_DATA && have_frozen_data()) {
+  message("Raw files up to ", DATA_END, " are already in data/raw/ (frozen data). ",
+          "Skipping download. Set REFRESH_DATA <- TRUE in R/00_config.R to re-check NHS England.")
+} else {
 
 raw_dir <- "data/raw"
 dir_create(raw_dir)
@@ -88,3 +106,4 @@ walk2(to_get$href, to_get$file, \(u, f) {
 # handling revisions in the cleaning step)
 write_csv(csv_links, "data/raw/_file_index.csv")
 message("Done. ", nrow(to_get), " new files downloaded to ", raw_dir)
+}  # end of download branch
