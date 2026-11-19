@@ -65,7 +65,7 @@ ann |>
 
 Likely range: 8 in 10 outcomes. **The risk is mainly upwards for Gloucestershire**: in back-tests, forecasts there came in about `r round(abs(bias_g), 1)`% too low.
 
-```{r chart, fig.width = 7.5, fig.height = 1.6}
+```{r chart, fig.width = 7.5, fig.height = 1.4}
 fc <- read_rds(here("data", "processed", "forecast_monthly_ranges.rds")) |>
   filter(provider != "Cluster total")
 hist <- monthly |> as_tibble() |> filter(month >= yearmonth("2023 Apr"))
