@@ -22,7 +22,8 @@
 #     uncertainty in the growth rate, so they come out too narrow. They are widened
 #     by a factor k, set so that the back-test errors fall inside the 80% and 95%
 #     ranges as often as they should. The annual range is also never narrower than
-#     the back-tests' own errors in 12-month totals.
+#     the back-tests' own errors in 12-month totals, and the two-trust total's
+#     range is the two trusts' ranges added (a bad winter tends to hit both).
 #
 # Covid: training starts in July 2021 rather than using a Covid dummy, because
 # demand came back at a different level and mix.
@@ -164,14 +165,32 @@ q_summ <- function(x) {
          hi80 = quantile(x, 0.90),  hi95 = quantile(x, 0.975))
 }
 
-# Cluster total: the two trusts added within each simulated future (treats their
-# surprises as independent; a bad flu season hits both, so this is a lower bound).
+# Cluster total: the two trusts added within each simulated future; its range is
+# then widened below so it is never narrower than the two trusts' ranges added.
 monthly_ranges <- bind_rows(
   sims_all |> group_by(provider, month) |> summarise(q_summ(att), .groups = "drop"),
   sims_all |> group_by(month, .rep) |> summarise(att = sum(att), .groups = "drop") |>
     group_by(month) |> summarise(q_summ(att), .groups = "drop") |>
     mutate(provider = "Cluster total")
 )
+
+# The cluster range adds the two trusts' ranges: a bad winter tends to hit both,
+# so treating them as independent would make the total look more certain than it is.
+widen_cluster <- function(tbl, by = NULL) {
+  comp <- tbl |> filter(provider != "Cluster total") |>
+    group_by(across(all_of(by))) |>
+    summarise(d_lo80 = sum(mean - lo80), d_hi80 = sum(hi80 - mean),
+              d_lo95 = sum(mean - lo95), d_hi95 = sum(hi95 - mean), .groups = "drop")
+  joined <- if (is.null(by)) cross_join(tbl, comp) else left_join(tbl, comp, by = by)
+  joined |>
+    mutate(is_total = provider == "Cluster total",
+           lo80 = if_else(is_total, pmin(lo80, mean - d_lo80), lo80),
+           hi80 = if_else(is_total, pmax(hi80, mean + d_hi80), hi80),
+           lo95 = if_else(is_total, pmin(lo95, mean - d_lo95), lo95),
+           hi95 = if_else(is_total, pmax(hi95, mean + d_hi95), hi95)) |>
+    select(-starts_with("d_"), -is_total)
+}
+monthly_ranges <- widen_cluster(monthly_ranges, by = "month")
 
 fy <- \(x) filter(x, month >= yearmonth("2027 Apr"), month <= yearmonth("2028 Mar"))
 plan_monthly <- fy(monthly_ranges)
@@ -213,6 +232,7 @@ plan_annual <- plan_annual_sim |>
   left_join(annual_err, by = "provider") |>
   mutate(lo80 = pmin(lo80, mean * (1 - err80)), hi80 = pmax(hi80, mean * (1 + err80)),
          lo95 = pmin(lo95, mean * (1 - err95)), hi95 = pmax(hi95, mean * (1 + err95))) |>
+  widen_cluster() |>
   left_join(last_12m, by = "provider") |>
   mutate(change_vs_last_12m = mean / last_12m_actual - 1)
 
