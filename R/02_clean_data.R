@@ -6,7 +6,9 @@
 #  * Bristol merger: North Bristol (RVJ) was acquired by UHBW (RA7) on 1 July
 #    2026 and UHBW was renamed Bristol NHS Foundation Trust, keeping code RA7.
 #    Summing RVJ + RA7 every month gives one continuous Bristol series, both
-#    before and after the merger.
+#    before and after the merger. Weston Area Health NHS Trust (RA3) reported
+#    separately until UH Bristol acquired it on 1 April 2020 (creating UHBW), so
+#    RA3 is added too; without it Bristol shows a false ~140/day step in 2020.
 #  * Type 1 only: Urgent Treatment Centres and other types changed reporting
 #    over time, so Type 1 (major EDs) is the consistent measure.
 #  * Revisions: if a month appears in more than one file, keep the revised one.
@@ -44,6 +46,7 @@ read_one <- function(path) {
     period        = pick(df, "^period$"),
     org_code      = pick(df, "^org_code$"),
     org_name      = pick(df, "^org_name$"),
+    # Files before April 2020 prefix these columns with "number_of_"
     type1_att     = pick(df, "^(number_of_)?a_e_attendances_type_1$"),
     type1_booked  = pick(df, "^(number_of_)?a_e_attendances_booked_appointments_type_1$"),
     type1_over4h  = pick(df, "^(number_of_)?attendances_over_4hrs_type_1$"),
