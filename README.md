@@ -10,8 +10,9 @@ what January 2028 demand means for 4-hour performance. Built in R.
 3. If January 2028 demand arrives as forecast, how does one extra clinician (10:00-22:00)
    change the share of patients leaving A&E within 4 hours?
 
-The full answers, methods and limitations are in the technical report: `report/report.html`.
-A one-page plain-English summary for commissioners is in `report/briefing_note.html` (and `.docx`).
+**Read the results**
+- [Technical report](https://iyeose.github.io/ae-demand-forecast-bnssg/report/report.html): methods, model comparison, forecasts, simulation and limitations
+- [One-page briefing note](https://iyeose.github.io/ae-demand-forecast-bnssg/report/briefing_note.html): plain-English summary for commissioners ([Word version](report/briefing_note.docx))
 
 ## Rerun everything
 
