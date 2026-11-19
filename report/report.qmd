@@ -29,16 +29,20 @@ fig <- function(f) knitr::include_graphics(here("outputs", "figures", f))
 pct <- function(x, a = 0.1) scales::percent(x, accuracy = a)
 cm  <- function(x) scales::comma(x, accuracy = 1)
 r10 <- function(x) scales::comma(round(x, -1))
+r100 <- function(x) scales::comma(round(x, -2))
 
 monthly <- read_rds(here("data", "processed", "ae_type1_monthly.rds"))
 q1    <- tab("q1_growth_seasonality.csv")
 acc   <- tab("q2_model_accuracy.csv")
 best  <- tab("q2_best_model.csv")
+rk    <- tab("q2_range_calibration.csv")
 ann   <- tab("q2_plan_annual_2027_28.csv")
 mon   <- tab("q2_plan_monthly_2027_28.csv")
 scen  <- tab("q3_scenarios.csv")
+imp   <- tab("q3_improvement.csv")
 sens  <- tab("q3_sensitivity.csv")
 calib <- tab("q3_calibration.csv")
+cchk  <- tab("q3_calibration_check.csv")
 assum <- tab("q3_assumptions.csv")
 
 b   <- filter(q1, str_detect(provider, "Bristol"))
@@ -46,32 +50,42 @@ g   <- filter(q1, str_detect(provider, "Glouc"))
 tot <- filter(ann, provider == "Cluster total")
 ab  <- filter(ann, str_detect(provider, "Bristol"))
 ag  <- filter(ann, str_detect(provider, "Glouc"))
+half80 <- function(r) (r$hi80 - r$lo80) / 2 / r$mean
+chosen <- function(p) acc |> semi_join(best, by = c("provider", ".model")) |> filter(str_detect(provider, p))
+cb  <- chosen("Bristol"); cg <- chosen("Glouc")
 s   <- scen$pct_4h
-rota_peak <- calib$rota_peak[which.min(calib$gap)]
+w   <- scen$mean_wait_clinician
+i1  <- imp[1, ]; i2 <- imp[2, ]
 obs_j26 <- monthly |> as_tibble() |>
   filter(str_detect(provider, "Glouc"), month == yearmonth("2026 Jan"))
-last_month <- format(as.Date(max(monthly$month)), "%B %Y")
+last_month  <- format(as.Date(max(monthly$month)), "%B %Y")
 first_month <- format(as.Date(min(monthly$month)), "%B %Y")
 model_names <- c(snaive = "Seasonal naive (baseline)", ets = "ETS", arima = "ARIMA",
                  tslm = "Regression: trend + month (TSLM)",
                  dynreg = "Regression with ARIMA errors")
+sw <- sens |> group_by(assumption) |>
+  summarise(lo = effect_pts[change == "-20%"], hi = effect_pts[change == "+20%"], swing = abs(hi - lo)) |>
+  arrange(desc(swing))
+sw_of <- function(a) sw |> filter(assumption == a)
 ```
 
 # Summary
 
-This report forecasts Type 1 (major emergency department) A&E attendances for the acute trusts serving Bristol, North Somerset and South Gloucestershire (BNSSG) and Gloucestershire, and simulates what January 2028 demand means for 4-hour performance. It answers three questions a commissioner planning 2027-28 activity would ask.
+This report forecasts Type 1 (major emergency department) A&E attendances for the acute trusts serving Bristol, North Somerset and South Gloucestershire (BNSSG) and Gloucestershire, and simulates what January 2028 demand means for Type 1 4-hour performance. It answers three questions a commissioner planning 2027-28 activity would ask. All 4-hour figures here are **Type 1 only**; they exclude urgent treatment centres and so sit below a trust's published all-types figure.
 
-**1. Growth and seasonality.** Since Covid, Type 1 demand has grown by about **`r pct(b$reg_growth_pa)` a year in Bristol** and **`r pct(g$reg_growth_pa)` in Gloucestershire** (95% confidence intervals `r pct(b$reg_growth_lo)` to `r pct(b$reg_growth_hi)` and `r pct(g$reg_growth_lo)` to `r pct(g$reg_growth_hi)`). Contrary to the usual assumption, attendances are **lower in winter** (December to February) than in summer: by `r pct(abs(b$reg_winter_vs_summer_att))` in Bristol and `r pct(abs(g$reg_winter_vs_summer_att))` in Gloucestershire. Winter pressure shows up instead in a higher share of patients being admitted and in worse 4-hour performance.
+**1. Growth and seasonality.** Since Covid, Type 1 demand has grown by about **`r pct(b$reg_growth_pa)` a year in Bristol** and **`r pct(g$reg_growth_pa)` in Gloucestershire** (95% confidence intervals `r pct(b$reg_growth_lo)` to `r pct(b$reg_growth_hi)` and `r pct(g$reg_growth_lo)` to `r pct(g$reg_growth_hi)`). Attendances are **lower in winter** (December to February) than in summer, by `r pct(abs(b$reg_winter_vs_summer_att))` in Bristol and `r pct(abs(g$reg_winter_vs_summer_att))` in Gloucestershire, but the **share of patients admitted is about `r pct(b$reg_winter_vs_summer_admrate, 1)` to `r pct(g$reg_winter_vs_summer_admrate, 1)` higher**. Winter brings sicker patients, not more of them.
 
-**2. Activity plan for 2027-28.** Plan for **`r cm(tot$mean)` Type 1 attendances** across the two trusts (80% range `r cm(tot$lo80)` to `r cm(tot$hi80)`), `r pct(tot$change_vs_last_12m)` more than the last 12 months: `r cm(ab$mean)` in Bristol and `r cm(ag$mean)` in Gloucestershire.
+**2. Activity plan for 2027-28.** Plan for **`r r100(tot$mean)` Type 1 attendances** across the two trusts (80% range `r r100(tot$lo80)` to `r r100(tot$hi80)`), `r pct(tot$change_vs_last_12m)` more than the last 12 months: `r r100(ab$mean)` in Bristol and `r r100(ag$mean)` in Gloucestershire. In back-tests the Gloucestershire models under-forecast by `r pct(abs(cg$annual_bias) / 100)` on average, so its risk runs upwards.
 
-**3. What it means for capacity.** In a simulation of Gloucestershire's emergency department in January 2028, the share of patients leaving A&E within 4 hours falls to about **`r pct(s[1])`** at current staffing. **One extra clinician from 10:00 to 22:00 raises it to about `r pct(s[2])`** and cuts the average wait to see a clinician from `r round(scen$mean_wait_clinician[1])` to `r round(scen$mean_wait_clinician[2])` minutes. The department runs close to its capacity limit, so small changes in staffing or demand have large effects.
+**3. What it means for capacity.** In a simulation of Gloucestershire's emergency department in January 2028, the share of Type 1 patients leaving A&E within 4 hours falls from `r pct(obs_j26$pct_within_4h)` (January 2026) to about **`r pct(s[1])`** (range across simulated Januaries `r pct(scen$pct_4h_lo[1], 1)` to `r pct(scen$pct_4h_hi[1], 1)`). **One extra clinician from 10:00 to 22:00 adds about `r round(i1$gain_pts, 1)` percentage points** (95% range `r round(i1$gain_lo, 1)` to `r round(i1$gain_hi, 1)`) and cuts the average wait to see a clinician by `r round(abs(i1$wait_change_min))` minutes. The department runs close to its capacity limit, so small changes in demand or clinician time have large effects.
 
 # Data
 
 ## Source
 
-NHS England, *Monthly A&E Attendances and Emergency Admissions*, provider-level CSV files. The analysis uses `r nrow(distinct(as_tibble(monthly), month))` consecutive months, `r first_month` to `r last_month`, downloaded automatically from the yearly NHS England pages. Earlier years (2015-16 to 2017-18) were published as Excel files only and are out of scope.
+NHS England, *Monthly A&E Attendances and Emergency Admissions*, provider-level CSV files: `r nrow(distinct(as_tibble(monthly), month))` consecutive months, `r first_month` to `r last_month`. Earlier years (2015-16 to 2017-18) were published as Excel files only and are out of scope.
+
+**The data is frozen.** The raw files are stored in the repository and the cut-off (`r last_month`) is set in `R/00_config.R`. Every script ignores later months, so a rerun reproduces these results even after NHS England publishes new or revised data. Updating the analysis means moving the cut-off deliberately, which will change every number.
 
 | Series | Organisation codes | Why |
 |---|---|---|
@@ -83,10 +97,10 @@ NHS England, *Monthly A&E Attendances and Emergency Admissions*, provider-level 
 - **Two mergers in Bristol.** Without Weston (RA3), the Bristol series showed a false step of about 140 attendances a day in April 2020. This was found from the first chart (the step did not appear in Gloucestershire) and confirmed in the raw data before fixing.
 - **Changing column names.** Files before April 2020 name the Type 1 column `Number of A&E attendances Type 1`; later files drop "Number of". The cleaning code matches both.
 - **Inconsistent link labels.** July 2021's file is labelled "Monthly July 2021" without "A&E"; the download filter was loosened so it is not skipped.
-- **Revisions.** Where a month has been revised, the latest version is used.
-- **Type 1 only.** Urgent Treatment Centres and other A&E types changed reporting over time, so only major emergency departments are modelled.
+- **Revisions.** Where a month has been revised, the latest version available at the cut-off is used.
+- **Type 1 only.** Urgent treatment centres and other A&E types changed reporting over time, so only major emergency departments are modelled. Type 1 4-hour performance is lower than the all-types figure trusts publish.
 - **Days in the month.** Attendances are converted to attendances per day so February's 28 days do not look like a fall in demand.
-- **Covid.** April 2020 to June 2021 is flagged. Growth, seasonality and forecasting use July 2021 onwards (see section 4.1).
+- **Covid.** April 2020 to June 2021 is flagged. Growth, seasonality and forecasting use July 2021 onwards.
 
 ```{r fig-raw}
 #| fig-cap: "Type 1 attendances per day, both series (shaded: Covid period)"
@@ -100,7 +114,7 @@ fig("01_type1_per_day.png")
 Two independent methods were used on July 2021 onwards, so each answer is cross-checked:
 
 - **STL decomposition** splits each series into a smooth trend, a fixed yearly seasonal pattern and a remainder.
-- **Regression** of log(attendances per day) on a time trend and calendar-month effects. The time coefficient gives annual growth with a 95% confidence interval; the month coefficients give the seasonal pattern.
+- **Regression** of log(attendances per day) on a time trend and calendar-month effects. The time coefficient gives annual growth with a 95% confidence interval; the month coefficients give the seasonal pattern. The same regression on emergency admissions gives the seasonal pattern in admissions, and the two together give the share of patients admitted.
 
 ## Results
 
@@ -109,26 +123,29 @@ tibble(
   Measure = c("Growth per year (regression, 95% CI)", "Growth per year (STL trend)",
               "Trend growth, last 12 months (STL)",
               "Attendances: winter vs summer (regression)", "Attendances: winter vs summer (STL)",
-              "Emergency admissions: winter vs summer", "4-hour performance: winter minus summer",
+              "Emergency admissions: winter vs summer", "Share admitted: winter vs summer",
+              "Type 1 4-hour performance: winter minus summer",
               "Attendances per day: pre-Covid to last 12 months"),
   Bristol = c(paste0(pct(b$reg_growth_pa), " (", pct(b$reg_growth_lo), " to ", pct(b$reg_growth_hi), ")"),
               pct(b$stl_growth_pa), pct(b$stl_growth_l12m),
               pct(b$reg_winter_vs_summer_att), pct(b$stl_winter_vs_summer),
-              pct(b$reg_winter_vs_summer_adm), paste(round(b$winter_minus_summer_4h_pts, 1), "points"),
+              pct(b$reg_winter_vs_summer_adm), pct(b$reg_winter_vs_summer_admrate),
+              paste(round(b$winter_minus_summer_4h_pts, 1), "points"),
               paste0(round(b$pre_covid_per_day), " to ", round(b$last_12m_per_day), " (", pct(b$change_vs_pre), ")")),
   Gloucestershire = c(paste0(pct(g$reg_growth_pa), " (", pct(g$reg_growth_lo), " to ", pct(g$reg_growth_hi), ")"),
               pct(g$stl_growth_pa), pct(g$stl_growth_l12m),
               pct(g$reg_winter_vs_summer_att), pct(g$stl_winter_vs_summer),
-              pct(g$reg_winter_vs_summer_adm), paste(round(g$winter_minus_summer_4h_pts, 1), "points"),
+              pct(g$reg_winter_vs_summer_adm), pct(g$reg_winter_vs_summer_admrate),
+              paste(round(g$winter_minus_summer_4h_pts, 1), "points"),
               paste0(round(g$pre_covid_per_day), " to ", round(g$last_12m_per_day), " (", pct(g$change_vs_pre), ")"))
 ) |>
   gt() |>
   tab_source_note("Winter = December to February; summer = June to August. Pre-Covid = April 2019 to February 2020.")
 ```
 
-**Growth.** The regression figure is the one to quote. The STL figure compares only the first and last points of the trend, and July 2021 was inflated by the post-lockdown rebound, which pulls it down. The last-12-months trend growth suggests demand may be accelerating, but it is sensitive to the most recent months and is tested in the forecasting models.
+**Growth.** The regression figure is the one to quote. The STL figure compares only the first and last points of the trend, and July 2021 was inflated by the post-lockdown rebound, which pulls it down. The last-12-months trend growth suggests demand may be accelerating; the forecasting back-tests (section 4) point the same way for Gloucestershire.
 
-**Seasonality.** January is the quietest month for attendances at both trusts; attendances peak in late spring and in October to November. In Bristol, emergency admissions hold up in winter while attendances fall, so a larger share of winter patients are admitted, and 4-hour performance is worst in winter. Winter pressure on A&E is about how unwell patients are and access to beds, not about the number of people arriving.
+**Seasonality.** January is the quietest month for attendances at both trusts; attendances peak in late spring and in October to November. But the share of patients admitted rises in winter at both trusts, by about `r pct(b$reg_winter_vs_summer_admrate, 1)` in Bristol and `r pct(g$reg_winter_vs_summer_admrate, 1)` in Gloucestershire, and Type 1 4-hour performance is worst in winter. Winter pressure is about how unwell patients are, not the number arriving. Whether waits for beds also lengthen in winter was not measured here: the decision-to-admit figures were used for January only (section 5).
 
 ```{r fig-season}
 #| fig-cap: "Seasonal pattern after removing the trend: % above or below an average month"
@@ -147,9 +164,10 @@ fig("02_stl_components.png")
 ## Method
 
 - **Training window.** July 2021 onwards. Demand returned after Covid at a different level and mix, so earlier data would mislead the trend, and five winters is enough to estimate monthly seasonality. This was preferred to a Covid dummy variable.
-- **Test.** The last 12 months (`r format(as.Date(max(monthly$month)) - months(11), "%B %Y")` to `r last_month`) were held back. Five models were trained on the earlier data and scored on the held-back months using MAPE (mean absolute percentage error), RMSE, MASE and the Winkler score for the 95% interval. The share of actual months falling inside each model's 80% and 95% ranges was also checked.
-- **Selection rule.** For each trust, the most accurate model (lowest MAPE) **whose residuals pass the Ljung-Box test** (p > 0.05). A model whose errors still contain a pattern produces over-confident ranges.
-- **Forecast.** The chosen model was refitted on all post-Covid data, and 2,000 possible futures were simulated to March 2028. Monthly and annual ranges come from those simulations; the cluster total adds the two trusts within each simulated future.
+- **Rolling-origin cross-validation.** Each model was trained on the first 36 months, forecast the next 12, then the training window grew by one month and it forecast again: 17 forecast origins, each 12 months ahead. Models were scored on MAPE (mean absolute percentage error) across all of these forecasts, on the error in each 12-month total, and on how often actual months fell inside each model's 80% and 95% ranges. Many origins, rather than one test year, means the choice does not rest on a single year.
+- **Selection rule.** For each trust, the most accurate model (lowest MAPE) whose residuals pass the Ljung-Box test (p > 0.05). A model whose errors still contain a pattern produces over-confident ranges.
+- **Honest ranges.** The models' own ranges include month-to-month noise but not uncertainty in the growth rate. Each trust's ranges were widened by the factor needed for back-test errors to fall inside them as often as promised, and the annual range is never narrower than the back-tests' own errors in 12-month totals. The two-trust total's range is the two trusts' ranges added, because a bad winter tends to hit both.
+- **Forecast.** The chosen model was refitted on all post-Covid data, and 2,000 possible futures were simulated to March 2028.
 
 ## Model comparison
 
@@ -157,35 +175,38 @@ fig("02_stl_components.png")
 acc |>
   left_join(mutate(best, Chosen = "Yes"), by = c("provider", ".model")) |>
   mutate(Model = model_names[.model], Chosen = replace_na(Chosen, "")) |>
-  select(provider, Model, MAPE, RMSE, MASE, in_80, in_95, lb_pvalue, Chosen) |>
+  select(provider, Model, MAPE, MAPE_1to3, MAPE_10to12, annual_MAPE, annual_bias, in_80, in_95, lb_pvalue, Chosen) |>
   gt(groupname_col = "provider") |>
-  fmt_number(c(MAPE, RMSE, MASE), decimals = 2) |>
+  fmt_number(c(MAPE, MAPE_1to3, MAPE_10to12, annual_MAPE, annual_bias), decimals = 2) |>
   fmt_number(lb_pvalue, decimals = 3) |>
   fmt_percent(c(in_80, in_95), decimals = 0) |>
-  cols_label(MAPE = "MAPE (%)", in_80 = "Inside 80% range", in_95 = "Inside 95% range",
-             lb_pvalue = "Ljung-Box p") |>
-  tab_source_note("Test period: the 12 most recent months, never seen by the models. Lower MAPE, RMSE and MASE are better.")
+  cols_label(MAPE = "MAPE (%)", MAPE_1to3 = "1-3 months ahead", MAPE_10to12 = "10-12 months ahead",
+             annual_MAPE = "12-month total error (%)", annual_bias = "12-month total bias (%)",
+             in_80 = "Inside 80% range", in_95 = "Inside 95% range", lb_pvalue = "Ljung-Box p") |>
+  tab_source_note("Rolling-origin cross-validation: 17 forecast origins, each 12 months ahead. Negative bias = under-forecast.")
 ```
 
-Every model beat the seasonal naive baseline. ETS selected a form with no trend, so it does not carry growth forward, which explains its weaker accuracy. For Bristol, the plain regression was marginally the most accurate but its residuals failed the Ljung-Box test (runs of high or low months), so the regression with ARIMA errors was chosen: almost identical accuracy, with honest ranges.
+For Bristol, the regression with ARIMA errors was the most accurate model outright (`r round(cb$MAPE, 2)`% MAPE) and its residuals are clean; its 12-month totals were off by only `r round(cb$annual_MAPE, 2)`% on average, and its own ranges proved conservative, so no widening was needed. For Gloucestershire, the trend-plus-month regression won narrowly (`r round(cg$MAPE, 2)`% MAPE). **Every Gloucestershire model under-forecast**: the chosen model's 12-month totals were `r round(abs(cg$annual_bias), 1)`% too low on average, consistent with demand there accelerating. ETS selected a form with no trend, so it does not carry growth forward.
 
-```{r fig-test}
-#| fig-cap: "Forecasts for the held-back months against what actually happened"
-fig("04_model_test.png")
+```{r fig-cv}
+#| fig-cap: "Forecast error by months ahead, averaged over 17 back-tests"
+fig("04_model_cv.png")
 ```
 
 ## The plan
 
 ```{r q2-annual}
 ann |>
-  transmute(Series = provider, `Plan (central)` = cm(mean),
-            `80% range` = paste(cm(lo80), "to", cm(hi80)),
-            `95% range` = paste(cm(lo95), "to", cm(hi95)),
+  transmute(Series = provider, `Plan (central)` = r100(mean),
+            `80% range` = paste(r100(lo80), "to", r100(hi80)),
+            `95% range` = paste(r100(lo95), "to", r100(hi95)),
             `Last 12 months (actual)` = cm(last_12m_actual),
             Change = pct(change_vs_last_12m)) |>
   gt() |>
   tab_header("Type 1 A&E attendances, April 2027 to March 2028")
 ```
+
+The 80% ranges are about ±`r pct(half80(ab), 0.1)` for Bristol, ±`r pct(half80(ag), 0.1)` for Gloucestershire and ±`r pct(half80(tot), 0.1)` for the two together.
 
 ```{r fig-fc}
 #| fig-cap: "Forecast to March 2028 with 80% and 95% ranges (shaded: 2027-28)"
@@ -202,15 +223,17 @@ mon |>
   tab_header("Monthly plan: central forecast (80% range)")
 ```
 
-**Limits.** The forecast assumes the post-Covid trend continues; a policy change such as redirecting patients to urgent treatment centres would break it. Gloucestershire's ranges are likely too narrow: in the test, only `r pct(acc$in_80[acc$provider == ag$provider & acc$.model == best$.model[best$provider == ag$provider]], 1)` of actual months fell inside its 80% range. In the most recent months its actual attendances ran above every model's forecast (see the model-test chart), so Gloucestershire's central plan is more likely to be too low than too high. The cluster-total range is also slightly too narrow, because it treats the two trusts' surprises as independent when a bad flu season affects both.
+**Limits.** The forecast assumes the post-Covid trend continues; a policy change such as redirecting patients to urgent treatment centres would break it. Gloucestershire's central figure is more likely too low than too high, given the back-test bias. The back-tests look 1 to 12 months ahead, while 2027-28 is 6 to 17 months ahead, so the later months' ranges may still be on the narrow side.
 
 # Question 3: what January 2028 demand means for capacity
 
 ## Model
 
-A discrete-event simulation (R package `simmer`) of Gloucestershire Hospitals' two emergency departments (Gloucestershire Royal and Cheltenham General), **modelled as one combined department**. This overstates how easily staff can move between sites, so results describe a department of this size rather than either site.
+A discrete-event simulation (R package `simmer`) of Gloucestershire Hospitals' two Type 1 emergency departments (Gloucestershire Royal and Cheltenham General), **modelled as one combined department**. This overstates how easily staff can move between sites, so results describe a department of this size rather than either site.
 
-Each simulated patient arrives, sees a triage nurse, waits for a clinician, has investigations and treatment, receives a clinician review and decision, and is then discharged or admitted after waiting for a bed. The 4-hour measure is time from arrival to leaving A&E, as in the NHS standard. Each scenario was run 100 times (2 warm-up days and 7 measured days each); the sensitivity runs used 50.
+Each simulated patient arrives, sees a triage nurse, waits for a clinician, has investigations and treatment, receives a clinician review and decision, and is then discharged or admitted after waiting for a bed. The 4-hour measure is time from arrival to leaving A&E, as in the NHS standard, for Type 1 patients. Each run simulates a whole January (31 days, after 3 warm-up days), and each scenario was run 100 times; the sensitivity runs used 50. Patients still in the department when a run ends count as breaches.
+
+Bed waits follow the three bands Gloucestershire actually reported for January 2026 (under 4 hours, 4 to 12 hours, over 12 hours), with a stated shape inside each band and the longest waits capped at 48 hours.
 
 ## Assumptions
 
@@ -219,7 +242,21 @@ assum |> gt() |> cols_label(parameter = "Parameter", value = "Value", source = "
   cols_width(parameter ~ px(190), value ~ px(330))
 ```
 
-**Calibration.** Clinician numbers are not published, so the rota was calibrated: peak staffing from 16 to 32 clinicians was tested against Gloucestershire's January 2026 demand (`r round(obs_j26$att_per_day)` a day), and the size that best reproduced the actual January 2026 4-hour performance (`r pct(obs_j26$pct_within_4h)`) was kept: **`r rota_peak` clinicians** from 10:00 to 22:00 (`r pct(calib$sim_4h[calib$rota_peak == rota_peak])` simulated). With one fewer clinician the simulated figure was `r pct(calib$sim_4h[calib$rota_peak == rota_peak - 1])`, an early sign of how close the department runs to capacity.
+**Calibration.** Real clinician staffing is not published. The model therefore uses a stated **modelled capacity** (22 clinician-equivalents at peak) and calibrates one continuous setting, the clinician time per patient, so that the model reproduces Gloucestershire's actual January 2026 Type 1 4-hour performance (`r pct(cchk$target_4h)`). Values from 30 to 60 minutes were each run 20 times; the calibrated value is **`r round(cchk$assess_mean, 1)` minutes**, which gives `r pct(cchk$sim_4h)` over 100 checking runs. The 22 is not a headcount: only the combination of capacity and minutes per patient is calibrated.
+
+```{r q3-calib}
+calib |>
+  ggplot(aes(assess_mean, sim_4h)) +
+  geom_hline(yintercept = cchk$target_4h, linetype = "dashed", colour = "grey50") +
+  geom_line(colour = "#2c6fbb", linewidth = 0.9) + geom_point(colour = "#2c6fbb") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Clinician minutes per patient", y = "Simulated Type 1 4-hour %",
+       title = "Calibration: the department sits near a capacity cliff",
+       subtitle = "January 2026 demand; dashed line = actual January 2026 performance") +
+  theme_minimal(base_size = 12)
+```
+
+The curve also shows how close to capacity the department runs: a few minutes more per patient takes performance from about 60% towards collapse.
 
 ## Results
 
@@ -227,17 +264,30 @@ assum |> gt() |> cols_label(parameter = "Parameter", value = "Value", source = "
 scen |>
   transmute(Scenario = str_remove(scenario, "^\\d\\. "),
             `Within 4h` = pct(pct_4h),
-            `Middle 95% of runs` = paste(pct(pct_4h_lo), "to", pct(pct_4h_hi)),
+            `Range across simulated Januaries (95%)` = paste(pct(pct_4h_lo), "to", pct(pct_4h_hi)),
             `Not admitted` = pct(pct_4h_nonadmitted), Admitted = pct(pct_4h_admitted),
             `Avg wait for clinician (min)` = round(mean_wait_clinician),
             `Avg time in A&E (h)` = round(mean_time_in_ae / 60, 1)) |>
-  gt()
+  gt() |>
+  tab_source_note("Type 1 patients, Gloucestershire modelled as one department.")
 ```
 
-- **No change:** demand growth takes 4-hour performance from about `r pct(obs_j26$pct_within_4h, 1)` (January 2026) to about `r pct(s[1], 1)` in January 2028.
-- **One extra clinician, 10:00 to 22:00:** about **`r round(100 * (s[2] - s[1]))` percentage points** better, with the average wait for a clinician down by `r round(scen$mean_wait_clinician[1] - scen$mean_wait_clinician[2])` minutes.
+```{r q3-imp}
+imp |>
+  transmute(Comparison = comparison,
+            `Gain in 4-hour % (points)` = round(gain_pts, 1),
+            `95% range` = paste(round(gain_lo, 1), "to", round(gain_hi, 1)),
+            `Change in wait for clinician (min)` = round(wait_change_min),
+            `Wait range` = paste(round(wait_lo), "to", round(wait_hi))) |>
+  gt() |>
+  tab_header("Effect of one extra clinician, 10:00 to 22:00") |>
+  tab_source_note("Paired: each scenario reuses the same simulated patients, so the effect is measured run against run.")
+```
+
+- **No change:** demand growth takes Type 1 4-hour performance from about `r pct(obs_j26$pct_within_4h, 1)` (January 2026) to about `r pct(s[1], 1)` in January 2028.
+- **One extra clinician, 10:00 to 22:00:** about **`r round(i1$gain_pts, 1)` percentage points** better (95% range `r round(i1$gain_lo, 1)` to `r round(i1$gain_hi, 1)`), with the average wait for a clinician down by `r round(abs(i1$wait_change_min))` minutes. Most of the gain is for patients who go home; admitted patients still mostly wait for a bed.
 - **The extra clinician also helps overnight.** Waits are longest for patients arriving between 22:00 and 02:00, when staffing falls while the evening backlog remains. A daytime clinician shrinks that backlog.
-- **High demand** (top of the 95% forecast range) overwhelms the current rota: the queue grows faster than it clears. Real departments respond with escalation measures that this model does not include, so the figure is a warning rather than a prediction.
+- **High demand** (top of the 95% forecast range) overwhelms the current capacity: the queue grows faster than it clears. Real departments respond with escalation measures this model does not include, so this is a warning rather than a prediction.
 
 ```{r fig-wait}
 #| fig-cap: "Average wait to see a clinician, by hour of arrival"
@@ -254,25 +304,21 @@ fig("08_clinician_usage.png")
 Each assumption was moved 20% up and down with everything else at baseline.
 
 ```{r fig-sens}
-#| fig-cap: "Change in percentage of patients within 4 hours when each assumption moves by 20%"
+#| fig-cap: "Change in percentage of Type 1 patients within 4 hours when each assumption moves by 20%"
 fig("07_sensitivity.png")
 ```
 
 ```{r q3-sens}
-sens |>
-  select(assumption, change, effect_pts) |>
-  pivot_wider(names_from = change, values_from = effect_pts) |>
-  mutate(Swing = abs(`+20%` - `-20%`)) |>
-  arrange(desc(Swing)) |>
+sw |>
+  transmute(Assumption = assumption, `-20%` = lo, `+20%` = hi, Swing = swing) |>
   gt() |>
-  fmt_number(-assumption, decimals = 1) |>
-  cols_label(assumption = "Assumption") |>
-  tab_source_note("Percentage points change in the share of patients within 4 hours.")
+  fmt_number(-Assumption, decimals = 1) |>
+  tab_source_note("Percentage points change in the share of Type 1 patients within 4 hours.")
 ```
 
-Clinician workload (arrivals multiplied by clinician time per patient) dominates. The arrivals and assessment-time rows are identical because the model sees them as the same workload. The result is therefore most sensitive to the 45-minute clinician-time assumption, which is the first thing to replace with local data.
+Clinician workload, arrivals multiplied by clinician time per patient, dominates: a 20% change in either moves the result by `r round(sw_of("Arrivals per day")$swing)` points from end to end. The result is most sensitive to clinician time per patient, which is calibrated rather than measured and is the first thing to replace with local data. Bed waits now matter more than in a model where most beds came within the hour: a 20% change in every bed wait moves the result by `r round(sw_of("Bed waits")$swing, 1)` points end to end.
 
-**Limits.** Patients waiting for a bed do not occupy a cubicle in this model. In reality they block space and slow everyone else, the winter mechanism found in question 1, so the model understates the effect of bed waits. Adding cubicle capacity, modelling the two sites separately, and using real clinician-time data are the natural next steps.
+**Limits.** Patients waiting for a bed do not occupy a cubicle in this model; in reality they block space and slow everyone else, so the model still understates the knock-on effect of bed waits. Day-of-week patterns (busy Mondays) and clinician seniority are not modelled, and the two sites are combined. The shapes within each bed-wait band and the 48-hour cap are assumptions.
 
 # Reproducibility
 
@@ -280,18 +326,19 @@ Everything is produced by numbered scripts in `R/`, run in order by `run_all.R`:
 
 | Script | Does |
 |---|---|
-| `01_download_data.R` | Reads NHS England's yearly pages and downloads every monthly CSV |
+| `00_config.R` | Data cut-off shared by every script |
+| `01_download_data.R` | Downloads the monthly CSVs from NHS England (skipped when the frozen files are present) |
 | `02_clean_data.R` | Builds the clean Type 1 series per trust |
 | `03_explore.R` | Question 1: STL and regression |
-| `04_forecast.R` | Question 2: model test, selection and 2027-28 forecast |
-| `05_simulate.R` | Question 3: calibration, scenarios and sensitivity |
+| `04_forecast.R` | Question 2: cross-validation, model choice, calibrated ranges and the 2027-28 forecast |
+| `05_simulate.R` | Question 3: calibration, scenarios, paired effects and sensitivity |
 | `report/report.qmd` | This report |
 
-Package versions are fixed with `renv`. To rerun everything:
+Package versions are fixed with `renv`, the raw data is frozen at `r last_month`, and random seeds are fixed, so a rerun reproduces these results:
 
 ```r
 renv::restore()
 source("run_all.R")
 ```
 
-Random seeds are fixed, so reruns give identical results. Built with `r R.version.string`.
+Built with `r R.version.string`.

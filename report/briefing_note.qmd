@@ -29,6 +29,9 @@ k   <- function(x) paste0(scales::comma(round(x / 1000)), ",000")
 q1   <- tab("q1_growth_seasonality.csv")
 ann  <- tab("q2_plan_annual_2027_28.csv")
 scen <- tab("q3_scenarios.csv")
+imp  <- tab("q3_improvement.csv")
+acc  <- tab("q2_model_accuracy.csv") |> semi_join(tab("q2_best_model.csv"), by = c("provider", ".model"))
+bias_g <- acc$annual_bias[str_detect(acc$provider, "Glouc")]
 monthly <- read_rds(here("data", "processed", "ae_type1_monthly.rds"))
 
 b   <- filter(q1, str_detect(provider, "Bristol"))
@@ -41,11 +44,11 @@ j26 <- monthly |> as_tibble() |>
 last_month <- format(as.Date(max(monthly$month)), "%B %Y")
 ```
 
-**The short version.** Plan for about **`r k(tot$mean)` major A&E attendances** across the Bristol and Gloucestershire hospital trusts in 2027-28, about `r pct(tot$change_vs_last_12m)` more than last year. Gloucestershire's emergency department is at the limit of its staffing: without extra cover, waits in January 2028 will be noticeably worse.
+**The short version.** Plan for about **`r k(tot$mean)` Type 1 (major emergency department) attendances** across the Bristol and Gloucestershire hospital trusts in 2027-28, about `r pct(tot$change_vs_last_12m)` more than last year. Gloucestershire's emergency department runs close to its capacity limit: without extra cover, waits in January 2028 are likely to be noticeably worse.
 
 ### 1. Is demand growing?
 
-Yes. Since the pandemic, attendances have grown about **`r pct(b$reg_growth_pa)` a year** in Bristol and **`r pct(g$reg_growth_pa)`** in Gloucestershire, faster in the last year. January is the quietest month for arrivals (`r pct(abs(b$reg_winter_vs_summer_att))` to `r pct(abs(g$reg_winter_vs_summer_att))` below summer); winter pressure comes from sicker patients needing beds, and longer waits for those beds.
+Yes. Since the pandemic, attendances have grown about **`r pct(b$reg_growth_pa)` a year** in Bristol and **`r pct(g$reg_growth_pa)`** in Gloucestershire, faster in the last year. Winter has fewer arrivals than summer (`r pct(abs(b$reg_winter_vs_summer_att))` to `r pct(abs(g$reg_winter_vs_summer_att))` fewer), but a larger share of them need admitting (about `r pct(b$reg_winter_vs_summer_admrate)` to `r pct(g$reg_winter_vs_summer_admrate)` more): winter pressure comes from sicker patients, not more of them.
 
 ### 2. How much activity should we plan for?
 
@@ -60,7 +63,7 @@ ann |>
   knitr::kable(align = "lrrr")
 ```
 
-The likely range covers 8 in 10 outcomes. **The risk is mainly upwards for Gloucestershire**, where recent months have run above trend.
+The likely range covers 8 in 10 outcomes. **The risk is mainly upwards for Gloucestershire**: in back-tests, forecasts there came in about `r round(abs(bias_g), 1)`% too low.
 
 ```{r chart, fig.width = 7.5, fig.height = 1.9}
 fc <- read_rds(here("data", "processed", "forecast_monthly_ranges.rds")) |>
@@ -86,16 +89,16 @@ ggplot() +
 
 ### 3. What does this mean for A&E in January 2028?
 
-Modelling Gloucestershire's emergency departments hour by hour shows:
+A simulation of Gloucestershire's Type 1 emergency department (both sites as one), calibrated to January 2026, shows:
 
-- **With today's staffing**, patients leaving A&E within 4 hours fall from about `r pct(j26)` (January 2026) to about **`r pct(s[1])`**.
-- **One extra senior clinician from 10am to 10pm** lifts this to about **`r pct(s[2])`** and cuts the average wait to be seen from `r round(w[1])` to `r round(w[2])` minutes. Night arrivals benefit too.
-- At the top of the demand range, the current rota cannot keep up.
+- **With current capacity**, patients leaving A&E within 4 hours fall from about `r pct(j26)` (January 2026) to about **`r pct(s[1])`** (range `r pct(scen$pct_4h_lo[1])` to `r pct(scen$pct_4h_hi[1])`).
+- **One extra clinician from 10am to 10pm** adds about **`r round(imp$gain_pts[1])` percentage points** (range `r round(imp$gain_lo[1])` to `r round(imp$gain_hi[1])`) and cuts the average wait to be seen from `r round(w[1])` to `r round(w[2])` minutes. Night arrivals benefit too.
+- At the top of the demand range, current capacity cannot keep up. Results are most sensitive to clinician time per patient, which is estimated, not measured.
 
 ### What this means for the 2027-28 plan
 
 1. **Plan on about `r k(tot$mean)` attendances** and stress-test against the top of the range, especially for Gloucestershire.
-2. **Focus winter plans on beds and patient flow**, not front-door capacity.
-3. **Fund extra clinician cover from 10am to 10pm in winter**, starting with Gloucestershire.
+2. **Fund extra clinician cover from 10am to 10pm in winter**, starting with Gloucestershire.
+3. **Plan winter beds for sicker patients**, not more of them: admissions, not arrivals, drive winter pressure.
 
-*Source: NHS England monthly A&E data to `r last_month`. Methods and assumptions: see the technical report.*
+*Source: NHS England monthly A&E data to `r last_month`. 4-hour figures are Type 1 only, below published all-types figures. Methods and assumptions: see the technical report.*
