@@ -48,7 +48,7 @@ last_month <- format(as.Date(max(monthly$month)), "%B %Y")
 
 ### 1. Is demand growing?
 
-Yes. Since the pandemic, attendances have grown about **`r pct(b$reg_growth_pa)` a year** in Bristol and **`r pct(g$reg_growth_pa)`** in Gloucestershire, faster in the last year. Winter has fewer arrivals than summer (`r pct(abs(b$reg_winter_vs_summer_att))` to `r pct(abs(g$reg_winter_vs_summer_att))` fewer), but a larger share of them need admitting (about `r pct(b$reg_winter_vs_summer_admrate)` to `r pct(g$reg_winter_vs_summer_admrate)` more): winter pressure comes from sicker patients, not more of them.
+Yes. Since the pandemic, attendances have grown about **`r pct(b$reg_growth_pa)` a year** in Bristol and **`r pct(g$reg_growth_pa)`** in Gloucestershire, faster in the last year. Winter has fewer arrivals than summer (`r pct(abs(b$reg_winter_vs_summer_att))` to `r pct(abs(g$reg_winter_vs_summer_att))` fewer), but a larger share of them need admitting (about `r pct(mean(c(b$reg_winter_vs_summer_admrate, g$reg_winter_vs_summer_admrate)))` more at both trusts): winter pressure comes from sicker patients, not more of them.
 
 ### 2. How much activity should we plan for?
 
