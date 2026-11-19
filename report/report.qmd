@@ -316,7 +316,7 @@ sw |>
   tab_source_note("Percentage points change in the share of Type 1 patients within 4 hours.")
 ```
 
-Clinician workload, arrivals multiplied by clinician time per patient, dominates: a 20% change in either moves the result by `r round(sw_of("Arrivals per day")$swing)` points from end to end. The result is most sensitive to clinician time per patient, which is calibrated rather than measured and is the first thing to replace with local data. Bed waits now matter more than in a model where most beds came within the hour: a 20% change in every bed wait moves the result by `r round(sw_of("Bed waits")$swing, 1)` points end to end.
+Clinician workload, arrivals multiplied by clinician time per patient, dominates: a 20% change in either moves the result by `r round(sw_of("Arrivals per day")$swing)` points from end to end. The result is most sensitive to clinician time per patient, which is calibrated rather than measured and is the first thing to replace with local data. Bed waits matter little here (a 20% change in every bed wait moves the result by only `r round(sw_of("Bed waits")$swing, 1)` points end to end), because most admitted patients already breach 4 hours and, in this model, a patient waiting for a bed does not hold up anyone else. That second point is a known limit, below.
 
 **Limits.** Patients waiting for a bed do not occupy a cubicle in this model; in reality they block space and slow everyone else, so the model still understates the knock-on effect of bed waits. Day-of-week patterns (busy Mondays) and clinician seniority are not modelled, and the two sites are combined. The shapes within each bed-wait band and the 48-hour cap are assumptions.
 
